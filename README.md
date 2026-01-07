@@ -9,8 +9,14 @@
 ```
 idea-vault/
 ├── apps/                    # 앱/도구 아이디어
-│   ├── tileable-ai/         # 타일 텍스처 생성기
-│   └── ...
+│   └── tileable-ai/         # 타일 텍스처 생성기
+├── plugins/                 # 언리얼 엔진 플러그인/스크립트
+│   ├── export-selected-actors/
+│   ├── staticmesh-overlap-detector/
+│   ├── foliage-tools/
+│   ├── foliage-debug-tool/
+│   ├── git-staged-external-actors/
+│   └── loaded-staticmeshes/
 ├── features/                # 기존 프로젝트에 추가할 기능
 ├── research/                # 기술/논문 조사
 ├── business/                # 비즈니스/수익화 아이디어
@@ -64,6 +70,12 @@ idea-vault/
 | 분류 | 이름 | 상태 | 설명 |
 |------|------|------|------|
 | apps | [Tileable AI](apps/tileable-ai/README.md) | 💡 idea | AI 기반 타일 텍스처 생성 도구 |
+| plugins | [Export Selected Actors](plugins/export-selected-actors/README.md) | ✅ completed | 선택한 액터 Excel 내보내기 |
+| plugins | [StaticMesh Overlap Detector](plugins/staticmesh-overlap-detector/README.md) | ✅ completed | 메시 겹침/중복 검출 |
+| plugins | [Foliage Tools](plugins/foliage-tools/README.md) | ✅ completed | 폴리지 배치 문제 검출 |
+| plugins | [Foliage Debug Tool](plugins/foliage-debug-tool/README.md) | ✅ completed | 폴리지 상세 디버깅 |
+| plugins | [Git Staged External Actors](plugins/git-staged-external-actors/README.md) | ✅ completed | Git External Actor 분석 |
+| plugins | [Loaded StaticMeshes](plugins/loaded-staticmeshes/README.md) | ✅ completed | StaticMesh 정보 CSV 출력 |
 
 ---
 
