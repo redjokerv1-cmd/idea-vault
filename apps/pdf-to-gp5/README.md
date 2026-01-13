@@ -1,6 +1,6 @@
 # OmniTab (구 PDF to GP5)
 
-**상태**: 🚧 in-progress (Phase 1 완료)  
+**상태**: 🚧 in-progress  
 **생성일**: 2026-01-13  
 **분류**: apps  
 **GitHub**: https://github.com/redjokerv1-cmd/OmniTab  
@@ -9,36 +9,7 @@
 
 ## 개요
 
-PDF/이미지 악보를 분석하여 Guitar Pro 5 (.gp5) 형식의 TAB 악보로 변환하는 도구
-
----
-
-## 🚀 Phase 1 완료 (2026-01-13)
-
-### TAB OCR 시스템
-
-| 지표 | 결과 |
-|------|------|
-| **숫자 인식** | 160개 |
-| **TAB 시스템** | 6개 |
-| **코드** | 47개 |
-| **신뢰도** | 80% |
-
-### 핵심 인사이트
-
-> "악보는 거의 대부분 흑백이다" → 단순 이진화가 복잡한 전처리보다 효과적
-
-```
-이전: 1개 숫자 인식
-이후: 160개 숫자 인식 (+16000%)
-```
-
-### 핵심 기술
-
-- **SimpleBinaryOCR**: 흑백 악보에 최적화된 OCR
-- **Scale factor**: 작은 숫자 3배 확대
-- **Contour detection**: 개별 숫자 분리
-- **EasyOCR allowlist**: 숫자만 인식
+PDF 악보를 분석하여 Guitar Pro 5 (.gp5) 형식의 TAB 악보로 변환하는 도구
 
 ---
 
