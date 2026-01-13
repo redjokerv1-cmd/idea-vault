@@ -1,6 +1,6 @@
 # OmniTab (구 PDF to GP5)
 
-**상태**: 🚧 in-progress (Phase 1 완료)  
+**상태**: 🔴 MVP 실패 - 핵심 기능 미완성  
 **생성일**: 2026-01-13  
 **분류**: apps  
 **GitHub**: https://github.com/redjokerv1-cmd/OmniTab  
@@ -13,32 +13,50 @@ PDF/이미지 악보를 분석하여 Guitar Pro 5 (.gp5) 형식의 TAB 악보로
 
 ---
 
-## 🚀 Phase 1 완료 (2026-01-13)
+## 🔴 현재 상태 (2026-01-13)
 
-### TAB OCR 시스템
+### MVP 실패 - 핵심 기능 미완성
 
-| 지표 | 결과 |
-|------|------|
-| **숫자 인식** | 160개 |
-| **TAB 시스템** | 6개 |
-| **코드** | 47개 |
-| **신뢰도** | 80% |
+| 기능 | 상태 | 설명 |
+|------|------|------|
+| **숫자 OCR** | ✅ | 148개, 80% 정확도 |
+| **카포 감지** | ✅ | 100% |
+| **가로줄 제거** | ✅ | 작동 |
+| **TAB 6줄 감지** | ❌ | 1/3만 성공 |
+| **줄 번호 매핑** | ❌ | ~20% 정확도 |
+| **마디 구분** | ❌ | 노이즈 문제 |
+| **GP5 생성** | ❌ | 사용 불가 |
 
-### 핵심 인사이트
-
-> "악보는 거의 대부분 흑백이다" → 단순 이진화가 복잡한 전처리보다 효과적
+### 핵심 실패 원인
 
 ```
-이전: 1개 숫자 인식
-이후: 160개 숫자 인식 (+16000%)
+TAB 구조 파싱 실패:
+- 6줄의 Y 좌표를 정확히 감지 못함
+- 숫자가 어느 줄에 있는지 알 수 없음
+- 마디 경계 구분 안 됨
+
+결과: 모든 음표가 1마디에 배치, 줄 번호 틀림
 ```
 
-### 핵심 기술
+### 교훈
 
-- **SimpleBinaryOCR**: 흑백 악보에 최적화된 OCR
-- **Scale factor**: 작은 숫자 3배 확대
-- **Contour detection**: 개별 숫자 분리
-- **EasyOCR allowlist**: 숫자만 인식
+1. **TAB 구조 파싱은 단순 OCR로 불가능**
+2. **6줄 감지가 핵심** - 이게 없으면 모든 게 틀림
+3. **반자동 접근이 현실적** - 완전 자동화는 어려움
+
+### 작동하는 코드
+
+```python
+# 숫자 OCR (작동)
+from omnitab.tab_ocr.recognizer.enhanced_ocr import EnhancedTabOCR
+ocr = EnhancedTabOCR()
+result = ocr.process_file("tab.png")  # 148 digits
+
+# GP5 Writer (MIDI 기반, 작동)
+from omnitab.gp5.writer import GP5Writer
+writer = GP5Writer(title="Song", tempo=120)
+writer.write(notes_data, "output.gp5")
+```
 
 ---
 
