@@ -83,8 +83,13 @@ DevKit의 일부 범용 규칙(예: Python 베스트 프랙티스)을 SkillsCoka
 ## 다음 단계
 
 - [ ] SkillsCokac 스킬 구조 상세 분석 (파일 포맷)
-- [ ] Universal DevKit NPX 배포 가능성 검토
 - [ ] vercel-react-best-practices 설치 후 내용 분석
+
+## 결정
+
+**NPX 도입 시기**: 프로젝트가 많아지면 검토 (현재는 Git 방식 유지)
+- 현재: 6개 리포지토리 → Git으로 충분
+- 기준: 10개+ 또는 팀 협업 시 재검토
 
 ---
 
