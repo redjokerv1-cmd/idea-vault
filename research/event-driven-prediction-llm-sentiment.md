@@ -205,4 +205,53 @@ UI display: "Value 82 | Sentiment +6 | Momentum Neutral"
 
 ---
 
+## Appendix: Data Source Gap-Fill Strategy (Cost Analysis)
+
+### Price Reality Check (Verified 2026-02-16)
+
+| Provider | Free Tier | Cheapest Paid | KRX Coverage | Notes |
+|----------|-----------|---------------|--------------|-------|
+| **yfinance** | Full (rate-limited) | $0 | Uncertain — needs testing | Already in our stack. Has earnings_estimate, eps_trend, eps_revisions, earnings_dates, earnings_history methods |
+| **FMP** | 250 calls/day (US only) | $22/mo Starter (US only) | Needs Ultimate $149/mo (Global) — KRX not explicitly confirmed | Good for US, expensive for KRX |
+| **Finnhub** | 60 calls/min (US fundamentals) | $3,000/mo All-in-One | Only at $3K tier | Free economic calendar useful; fundamentals too expensive |
+| **EODHD** | 1yr history (request needed) | Paid for 30yr+ | Supports KRX for dividends/splits | Good for dividend ex-dates specifically |
+| **FnGuide/FnSpace** | None | Coin-based (contact for pricing) | Full Korean coverage | The "gold standard" for Korean consensus but expensive |
+| **ECOS (BOK)** | Full | $0 | Korean economic indicators | 100+ metrics, free API, good for macro |
+| **FRED** | Full | $0 | US economic data | Good for US macro, no Korean data |
+
+### Recommended Strategy: "Test Free First, Pay Later"
+
+**Phase 0 ($0/mo — Immediate)**
+- Test yfinance Korean stock earnings data (005930.KS, 000660.KS, etc.)
+- Methods: get_earnings_estimate(), get_eps_trend(), get_eps_revisions(), get_earnings_dates(), get_earnings_history()
+- If major KOSPI 50 stocks work → covers core event signal gaps for free
+
+**Phase 1 ($0/mo — Build Over Time)**
+- Daily snapshot: yfinance consensus EPS/revenue estimates → DB append
+- After 2-3 months: self-built analyst revision history
+- Earnings surprise = actual EPS - estimated EPS (auto-calculated)
+- Connect ECOS API for Korean economic calendar (free)
+- Keep fomc_calendar.py hardcoded schedule as fallback
+
+**Phase 2 (If Needed — $22~149/mo)**
+- If yfinance Korean coverage is insufficient:
+  - FMP Ultimate ($149/mo) for global consensus
+  - OR FnGuide for definitive Korean coverage (contact for pricing)
+- EODHD for dividend ex-dates (low cost)
+- Finnhub free tier for economic calendar supplement
+
+### Key Insight: "Snapshot → Self-Built History"
+
+The smartest low-cost approach: instead of paying for historical revision data, take daily snapshots of current consensus and build your own revision history over time. This costs $0 and after 2-3 months provides the same data that expensive providers sell.
+
+```
+Daily batch job:
+1. yfinance.get_earnings_estimate() → sv2_consensus_snapshots
+2. yfinance.get_eps_trend() → same table
+3. yfinance.get_earnings_dates() → sv2_earnings_calendar
+→ After 60-90 days: full self-built EPS revision history
+```
+
+---
+
 *Last updated: 2026-02-16*
