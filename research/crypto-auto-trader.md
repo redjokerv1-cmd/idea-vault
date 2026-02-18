@@ -98,12 +98,16 @@
 
 ---
 
-## 업비트 API 스펙
+## 업비트 API 상세
+
+### 기본 정보
 
 | 항목 | 상세 |
 |---|---|
-| 인증 | JWT + HMAC-SHA256, 매 요청 nonce |
+| **비용** | API 사용료 무료. 과금 포인트는 매매 수수료(0.05%)만 |
+| 인증 | JWT + HMAC-SHA512, 매 요청 UUID nonce |
 | Rate Limit (시세) | 초당 10회/IP (캔들, 체결, 호가 각각) |
+| Rate Limit (공식 정정) | Public 30 req/sec, Private 8 req/sec |
 | Rate Limit (Origin) | Origin 헤더 시 10초당 1회 |
 | 초과 시 | 429 → 반복 위반 시 418 + 차단 |
 | WebSocket | 시세 공개 스트림, 120초 idle, ping 30초 |
@@ -113,18 +117,199 @@
 **업비트 = 현물 전용**: 롱만 가능, 공매도/헤지 불가, 펀딩비 없음, 레버리지 없음.
 → 리스크 엔진이 단순해지는 장점.
 
-### 업비트 API 실전 이슈 (2025-2026 리서치)
+### 데이터 카탈로그 (API로 받을 수 있는 것)
+
+#### Quotation API (공개, 키 불필요)
+
+| 데이터 | 엔드포인트 | 핵심 필드 | 봇에서의 용도 |
+|---|---|---|---|
+| **마켓 리스트** | `/v1/market/all` | market, korean_name, english_name | 거래 가능 종목 탐색, 유동성 필터 |
+| **현재가/티커** | `/v1/ticker?markets=` | trade_price, prev_closing_price, high/low_price, acc_trade_volume_24h, signed_change_rate | 실시간 가격 모니터링, 변동률 체크 |
+| **분봉 캔들** | `/v1/candles/minutes/{unit}` | opening_price, high_price, low_price, trade_price (종가), candle_acc_trade_volume, candle_date_time_kst | 기술지표 계산 원천 |
+| **일/주/월봉** | `/v1/candles/days`, `/weeks`, `/months` | 동일 + prev_closing_price | 장기 지표, 백테스트 데이터 |
+| **체결 내역** | `/v1/trades/ticks` | trade_price, trade_volume, ask_bid (매수/매도), timestamp | 체결 흐름 분석, 실시간 매수/매도 세력 |
+| **호가 (오더북)** | `/v1/orderbook` | orderbook_units[15] {ask_price, bid_price, ask_size, bid_size}, total_ask_size, total_bid_size | 오더북 imbalance, 슬리피지 추정 |
+
+> **분봉 단위**: 1, 3, 5, 10, 15, 30, 60, 240분. 한 번에 최대 200개.
+> **여러 마켓 동시 조회**: 티커/호가는 `markets=KRW-BTC,KRW-ETH,...` 방식으로 한 요청에 다수 가능 → 호출 수 절약.
+
+#### Exchange API (인증 필요, Access/Secret 키 + JWT)
+
+| 데이터 | 엔드포인트 | 핵심 필드 | 봇에서의 용도 |
+|---|---|---|---|
+| **잔고 조회** | `/v1/accounts` | currency, balance, locked, avg_buy_price, unit_currency | 포지션 사이징, 리스크 계산 |
+| **주문 가능 정보** | `/v1/orders/chance` | ask/bid {currency, balance, locked, min_total}, market.ask/bid.fee | 주문 전 검증, 수수료 계산 |
+| **주문 생성** | `POST /v1/orders` | market, side(bid/ask), volume, price, ord_type(limit/price/market) | 매수/매도 실행 |
+| **주문 조회** | `/v1/order` | uuid, state(wait/watch/done/cancel), executed_volume, remaining_volume, trades[] | 체결 상태 추적, 부분체결 관리 |
+| **주문 취소** | `DELETE /v1/order` | uuid | 미체결 주문 정리, 전략 변경 시 |
+| **체결 이력** | `/v1/orders/closed` | 과거 주문/체결 내역, 수수료, 체결가/량 | 성과 분석, 로그 |
+
+> **출금 API**: 존재하지만 보안상 API 키에서 출금 권한은 **반드시 제거**. 자동매매에는 조회+주문 권한만.
+
+#### WebSocket 실시간 스트림
+
+| 채널 | 데이터 | 지연 | 봇에서의 용도 |
+|---|---|---|---|
+| **ticker** | 현재가, 변동률, 거래량 | ms 단위 | 실시간 가격 모니터링 |
+| **trade** | 체결가, 체결량, 매수/매도 구분 | ms 단위 | 체결 흐름 분석, 진입/청산 트리거 |
+| **orderbook** | 15호가 매수/매도, 잔량 | ms 단위 | 오더북 imbalance, 슬리피지 실시간 추정 |
+| **myOrder** (인증) | 내 주문 체결/취소 이벤트 | ms 단위 | 주문 상태 실시간 동기화 |
+
+> REST 폴링 대신 WebSocket이 정석. 데이터 지연 최소화 + Rate Limit 절약.
+
+### 데이터 → 피처 매핑
+
+```
+[업비트 API 데이터]                    [피처 엔진 (3축)]
+─────────────────                    ─────────────────
+분/일봉 OHLCV ──────────────────────→ 축 1: 기술지표
+  opening_price, high, low, close   │  SMA_50/200, EMA_21
+  candle_acc_trade_volume           │  RSI_14, MACD(12,26,9)
+                                    │  BB(20,2), ATR_14
+                                    │  OBV, VWAP
+                                    │
+호가 (orderbook_units[15]) ─────────→ 축 3: 시장구조
+  ask_price/size, bid_price/size    │  bid-ask imbalance
+  total_ask_size, total_bid_size    │  depth ratio
+                                    │  spread %
+                                    │
+체결 (trades/ticks) ────────────────→ 축 3: 시장구조
+  trade_price, trade_volume         │  체결 속도/방향성
+  ask_bid (매수/매도 구분)           │  buy vs sell volume ratio
+                                    │
+티커 (ticker) ──────────────────────→ 보조 피처
+  signed_change_rate                │  24h 변동률
+  acc_trade_volume_24h              │  유동성 필터
+                                    │
+외부 API ───────────────────────────→ 축 2: 센티먼트
+  (업비트 API 범위 밖)               │  Fear & Greed Index
+                                    │  뉴스 감성 점수
+```
+
+### UpbitGateway 메서드 시그니처
+
+```python
+class UpbitGateway:
+    """업비트 API 래퍼 — Rate Limit 큐 + 재시도 + 로깅 내장"""
+
+    # --- Quotation (공개) ---
+    async def get_markets(self) -> list[Market]:
+        """거래 가능 마켓 리스트 (KRW-BTC, KRW-ETH, ...)"""
+
+    async def get_ticker(self, markets: list[str]) -> list[Ticker]:
+        """현재가/티커 (여러 마켓 동시 조회)"""
+
+    async def get_candles(
+        self, market: str, interval: CandleInterval,
+        count: int = 200, to: datetime | None = None
+    ) -> list[Candle]:
+        """캔들 조회 (분/일/주/월봉)"""
+
+    async def get_trades(self, market: str, count: int = 100) -> list[Trade]:
+        """최근 체결 내역"""
+
+    async def get_orderbook(self, markets: list[str]) -> list[Orderbook]:
+        """호가 (15단계 매수/매도)"""
+
+    # --- Exchange (인증) ---
+    async def get_balances(self) -> list[Balance]:
+        """계좌 잔고 (코인별 보유/잠금/평단가)"""
+
+    async def get_order_chance(self, market: str) -> OrderChance:
+        """주문 가능 정보 (가용 잔고, 수수료율)"""
+
+    async def place_order(
+        self, market: str, side: Side, ord_type: OrderType,
+        volume: Decimal | None = None, price: Decimal | None = None
+    ) -> Order:
+        """주문 생성 (지정가: volume+price, 시장가매수: price만, 시장가매도: volume만)"""
+
+    async def get_order(self, uuid: str) -> Order:
+        """주문 상태 조회"""
+
+    async def cancel_order(self, uuid: str) -> Order:
+        """주문 취소"""
+
+    async def get_closed_orders(
+        self, market: str, states: list[str] = ["done", "cancel"]
+    ) -> list[Order]:
+        """체결/취소된 주문 이력"""
+
+    # --- WebSocket ---
+    async def subscribe_realtime(
+        self, markets: list[str],
+        channels: list[Channel] = ["ticker", "trade", "orderbook"],
+        on_message: Callable = None
+    ) -> None:
+        """실시간 데이터 구독 (ticker/trade/orderbook)"""
+
+    async def subscribe_my_orders(self, on_event: Callable) -> None:
+        """내 주문/체결 실시간 이벤트 (인증 WebSocket)"""
+```
+
+```python
+# 데이터 모델 (Pydantic)
+class CandleInterval(str, Enum):
+    M1 = "1"; M3 = "3"; M5 = "5"; M10 = "10"
+    M15 = "15"; M30 = "30"; M60 = "60"; M240 = "240"
+    DAY = "day"; WEEK = "week"; MONTH = "month"
+
+class Candle(BaseModel):
+    market: str
+    candle_date_time_kst: datetime
+    opening_price: Decimal
+    high_price: Decimal
+    low_price: Decimal
+    trade_price: Decimal  # 종가
+    candle_acc_trade_volume: Decimal
+    candle_acc_trade_price: Decimal
+
+class Orderbook(BaseModel):
+    market: str
+    timestamp: int
+    total_ask_size: Decimal
+    total_bid_size: Decimal
+    orderbook_units: list[OrderbookUnit]  # 15단계
+
+class OrderbookUnit(BaseModel):
+    ask_price: Decimal; ask_size: Decimal
+    bid_price: Decimal; bid_size: Decimal
+
+class Balance(BaseModel):
+    currency: str
+    balance: Decimal      # 주문 가능
+    locked: Decimal       # 주문 중 잠금
+    avg_buy_price: Decimal
+    unit_currency: str    # KRW
+
+class Order(BaseModel):
+    uuid: str
+    market: str
+    side: str             # bid(매수) / ask(매도)
+    ord_type: str         # limit / price / market
+    state: str            # wait / watch / done / cancel
+    volume: Decimal | None
+    price: Decimal | None
+    executed_volume: Decimal
+    remaining_volume: Decimal
+    trades: list[dict] | None
+```
+
+### 실전 이슈 (2025-2026 리서치)
 
 | 이슈 | 상세 | 대응 |
 |---|---|---|
 | **PyJWT 2.0+ 호환성** | `jwt.encode()` 반환 타입 변경 (bytes→str) | 버전별 분기 또는 `.decode('utf-8')` 처리 |
-| **Rate Limit 정정** | 공식: Public 30 req/sec, Private 8 req/sec | CCXT의 기본 rate limiter + 자체 버퍼 |
+| **Rate Limit** | Public 30 req/sec, Private 8 req/sec | CCXT 기본 limiter + 자체 큐 + 백오프 |
 | **Query Hash** | SHA-512, URL 파라미터 알파벳 정렬 필수 | CCXT가 처리하지만 직접 호출 시 주의 |
 | **Nonce** | UUID 기반, replay attack 방지 | 매 요청 새 UUID 생성 |
 | **API 안정성** | 2019년 이후 인증 스킴 변경 없음 | 장기 프로젝트에 적합 (바이낸스 대비 안정) |
 | **라이브러리** | `upbit-client` (2026.01 최신, 36 releases) | CCXT 우선, 필요 시 upbit-client 보조 |
+| **분봉 한도** | 한 요청당 최대 200개 | 대량 수집 시 `to` 파라미터로 페이징 |
+| **다수 마켓 동시 조회** | 티커/호가는 쉼표로 여러 마켓 가능 | 호출 수 절약의 핵심 |
+| **WebSocket 재연결** | 120초 idle → 자동 끊김 | 30초 ping + 자동 reconnect 로직 필수 |
 
-> CCXT가 대부분 처리하지만, 직접 REST 호출이 필요한 경우(WebSocket 인증 등) 위 이슈를 알아야 한다.
+> CCXT가 대부분 처리하지만, WebSocket 인증/직접 REST 호출 시 위 이슈를 알아야 한다.
 
 ---
 
@@ -292,8 +477,8 @@
 
 | 서비스 | 책임 | 주요 메서드 |
 |---|---|---|
-| **UpbitGateway** | 거래소 API 래핑, Rate Limit, 재시도 | `get_candles()`, `get_orderbook()`, `place_order()`, `cancel_order()`, `get_balances()` |
-| **MarketDataService** | 실시간 WebSocket + 시계열 DB 기록 | `subscribe()`, `get_historical()`, `stream_trades()` |
+| **UpbitGateway** | 거래소 API 래핑, Rate Limit 큐, 재시도 | → "UpbitGateway 메서드 시그니처" 섹션 참조 (Quotation + Exchange + WebSocket) |
+| **MarketDataService** | WebSocket 구독 관리 + 시계열 DB 기록 | `subscribe()`, `get_historical()`, `stream_trades()` |
 | **IndicatorEngine** | 3축 피처 계산 (기술지표+센티+시장구조) | `compute_features(ohlcv, config)` → feature_vector |
 | **RegimeDetector** | 시장 상태 분류 (추세/횡보/고변동성) | `detect(features)` → regime_state |
 | **StrategyEngine** | 멀티 모델 앙상블 + 메타 컨트롤러 | `generate_signal(features, regime)` → Signal(direction, confidence, reasons) |
@@ -701,11 +886,15 @@ CCXT 라이브러리만 활용하고 나머지는 자체 구축. 상용 봇의 U
 
 ### 업비트 & 규제
 - [업비트 개발자 센터](https://docs.upbit.com/)
+- [업비트 API 레퍼런스 (한국어)](https://docs.upbit.com/kr/reference/api-overview)
 - [업비트 REST API Best Practice](https://global-docs.upbit.com/docs/rest-api-best-practice)
 - [업비트 WebSocket Best Practice](https://global-docs.upbit.com/docs/websocket-best-practice)
 - [CCXT 업비트 연동 가이드](https://global-docs.upbit.com/docs/ccxt-library-integration-guide)
 - [python-upbit-client (GitHub)](https://github.com/uJhin/python-upbit-client)
 - [TildAlice: Upbit Trading Bot Setup](https://tildalice.io/upbit-trading-bot-setup-auth/)
+- [업비트 캔들 API 상세 (blog.naver)](https://blog.naver.com/hn03055/222792775089)
+- [업비트 실시간 시세 가져오기 (gran007.tistory)](https://gran007.tistory.com/entry/%EB%B9%84%ED%8A%B8%EC%BD%94%EC%9D%B8-%EC%97%85%EB%B9%84%ED%8A%B8-%EC%8B%A4%EC%8B%9C%EA%B0%84-%EC%8B%9C%EC%84%B8-%EB%B0%9B%EC%95%84%EC%98%A4%EA%B8%B0)
+- [PyUpbit JWT 인증 가이드 (wikidocs)](https://wikidocs.net/179292)
 - [가상자산이용자보호법](https://www.law.go.kr/lsInfoP.do?lsId=014474)
 - [금감원 분 단위 감시 발표 (2025.10)](https://www.mbn.co.kr/news/economy/5149771)
 
@@ -742,4 +931,4 @@ CCXT 라이브러리만 활용하고 나머지는 자체 구축. 상용 봇의 U
 
 ---
 
-*마지막 업데이트: 2026-02-18 (백엔드 모듈 아키텍처 + UI 화면 설계 + 4단계 운영 모드 + 전략 포트폴리오 + 시장 참여자 유형 분석)*
+*마지막 업데이트: 2026-02-18 (업비트 API 데이터 카탈로그 + 피처 매핑 + UpbitGateway 시그니처 + 데이터 모델)*
