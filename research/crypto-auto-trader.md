@@ -18,23 +18,48 @@
 - 용도: 본인 계정 + 본인 자금 + 개인용 도구 (서비스화는 별도)
 - 거래소: 업비트 (현물 전용, 선물/레버리지 없음)
 - 방향: 독립 리포로 분리 (projects-hub 서브모듈), universal-devkit 통해 지식 공유
+- 포지션: "진짜 퀀트/개발자" 그룹 — 인프라·전략·AI·리스크 직접 설계
 
 ---
 
-## 시스템 3단계 구조
+## 시장 참여자 유형 & 우리 포지션
 
-### 1. 시그널 생성
-- 입력: 가격/거래량, 오더북, 체결, 온체인, 뉴스/소셜
-- 출력: 매수/매도/대기, 방향/강도, 기대 수익/위험 추정
-- 방식: 규칙 기반 전략(기술지표, 오더북 패턴) + ML/AI 모델 혼합
+| 유형 | 특징 | 결과 |
+|---|---|---|
+| **1. 상용 봇 의존** | 3Commas/Pionex에 자금 넣고 프리셋 실행 | 장세 바뀌면 같이 깨짐, 수수료 구조가 플랫폼 유리 |
+| **2. 준개발자** | GitHub 포크 + 파라미터 약간 수정 + 소액 투입 | 백테스트/리스크 허술 → 한동안 잘 되다가 레짐 전환 시 손실 |
+| **3. 퀀트/개발자** | 데이터 파이프라인 + 백테스트 + 리스크 모듈 직접 구축 | 전략 포트폴리오 운영, AI는 보조 필터로 활용 |
 
-### 2. 리스크/포지션 결정
-- 계좌 % 베팅 규칙, 손절/익절, 일/주 손실 한도, MDD 한도
-- 코인별 익스포저 제한
+**우리 = 유형 3** — 주식 퀀트/툴 구축 경험 + 규제 인식 + 기존 인프라 보유.
+유형 1·2의 실패 패턴(리스크 허술, 레짐 변화 무시, 단일 전략 고정)을 설계에서 원천 차단.
 
-### 3. 실행(Execution)
-- 거래소 API로 주문 전송, 체결/잔고/포지션 실시간 관리
-- 슬리피지/수수료/레이트리밋 대응
+> 한국/업비트 특유 패턴: 개인 개발자들이 단순 MDD/손절 + MA/RSI + 분할매수 자동화를 만들어 쓰는 경우가 많음. 일부는 유료 시그널/솔루션으로 팔다 법적 리스크(시세조종·무허가 운용업)에 근접. → 우리는 **개인용 전용, 절대 타인 자금 운용 안 함**.
+
+---
+
+## 시스템 구조
+
+### 핵심 레이어 (3층)
+
+```
+[1. 시그널 생성] → 3축 피처 + 멀티 모델 앙상블 + 메타 컨트롤러
+        ↓
+[2. 리스크/포지션] → 리스크 엔진이 시그널 상위 레이어, 포지션 크기 결정
+        ↓
+[3. 실행] → 주문 전송, 체결/잔고 관리, 슬리피지/수수료 대응
+```
+
+### 4단계 운영 모드
+
+| 모드 | 설명 | 자금 |
+|---|---|---|
+| **Research** | 오프라인 백테스트, 전략 실험, 모델 학습 | 없음 |
+| **Paper** | 실시간 시세 + 가상 계좌 시뮬레이션 | 없음 |
+| **Live-Small** | 계좌의 1~5%로 소액 실거래 검증 | 소액 |
+| **Live-Full** | 검증된 전략만 허용 비율 내 운용 | 설정 한도 |
+
+> 모든 전략은 Research → Paper → Live-Small을 거쳐야 Live-Full 진입 가능.
+> 같은 StrategyEngine + RiskManager + ExecutionEngine 코드가 모드만 바꿔 동작해야 함.
 
 ---
 
@@ -216,16 +241,10 @@
 - 표준 피처 세트 + 실험 로그/코드 버전 관리 (내부 재현성 확보)
 
 ### Phase 6: 운영 + 대시보드 + 확장 (장기)
-- 소액 Live → 단계적 확대
-- **실시간 대시보드** (상용 봇 UX 벤치마킹):
-  - PnL 트래커 (일별/누적, 코인별 breakdown)
-  - 포지션 뷰 (현재 보유, 진입가, 손익, 청산 조건)
-  - 주문 히스토리 + 실행 상태
-  - 모델별 시그널 투명 공개 (확신도, 피처 중요도)
-  - 전략 모드 전환 UI (백테스트 / 페이퍼 / 실전)
-- **알림 체계**: 텔레그램/푸시 (손실 한도 접근, 오류, 주문 실패, MDD 경고)
+- Live-Small → Live-Full 단계적 확대
+- 실시간 대시보드 + 알림 체계 구현 (→ "UI 화면 설계" 섹션 참조)
 - 온체인 데이터 통합 (축 3 확장)
-- 멀티 코인/멀티 전략 확장
+- 멀티 코인/멀티 전략 포트폴리오 확장
 - 전략 템플릿 라이브러리 (DCA, 그리드, 모멘텀 등 모듈화)
 
 ---
@@ -244,6 +263,115 @@
 10. **백테스트 없이 라이브 없다** — 코인 데이터로 재보정하지 않은 전략은 실거래 금지
 11. **상용 봇 UX 벤치마킹** — AI/ML은 직접, 운영 안정성/UX 패턴은 상용 봇(3Commas, Cryptohopper) 적극 참고
 12. **투명성 > 블랙박스** — 모든 시그널에 피처 중요도·확신도 공개, "왜 이 판단인지" 사용자가 볼 수 있어야 함
+13. **모드 독립성** — 같은 코드가 Research/Paper/Live-Small/Live-Full에서 실행 레이어만 교체하여 동작
+14. **전략 포트폴리오** — 단일 전략 운용이 아닌, 여러 봇(전략) 동시 운용 + 독립 PnL 추적 + 글로벌 리스크
+
+---
+
+## 백엔드 모듈 아키텍처 (서비스/클래스 설계)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     FastAPI Application                      │
+├──────────┬──────────┬──────────┬──────────┬─────────────────┤
+│ REST API │ WebSocket│ Scheduler│ Debug API│ Telegram Bot    │
+├──────────┴──────────┴──────────┴──────────┴─────────────────┤
+│                    Service Layer                             │
+├──────────┬──────────┬──────────┬──────────┬─────────────────┤
+│ Upbit    │ Market   │Indicator │ Strategy │ Risk            │
+│ Gateway  │ Data Svc │ Engine   │ Engine   │ Manager         │
+├──────────┼──────────┼──────────┼──────────┼─────────────────┤
+│Execution │ Backtest │ Paper    │ Benchmark│ Alert           │
+│ Engine   │ Engine   │ Engine   │ Framework│ Service         │
+├──────────┴──────────┴──────────┴──────────┴─────────────────┤
+│                  PostgreSQL (ct_ prefix)                     │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 핵심 서비스 (11개)
+
+| 서비스 | 책임 | 주요 메서드 |
+|---|---|---|
+| **UpbitGateway** | 거래소 API 래핑, Rate Limit, 재시도 | `get_candles()`, `get_orderbook()`, `place_order()`, `cancel_order()`, `get_balances()` |
+| **MarketDataService** | 실시간 WebSocket + 시계열 DB 기록 | `subscribe()`, `get_historical()`, `stream_trades()` |
+| **IndicatorEngine** | 3축 피처 계산 (기술지표+센티+시장구조) | `compute_features(ohlcv, config)` → feature_vector |
+| **RegimeDetector** | 시장 상태 분류 (추세/횡보/고변동성) | `detect(features)` → regime_state |
+| **StrategyEngine** | 멀티 모델 앙상블 + 메타 컨트롤러 | `generate_signal(features, regime)` → Signal(direction, confidence, reasons) |
+| **RiskManager** | 포지션 사이징, 한도 체크, MDD 정지 | `approve(signal, account)` → Intent(size, sl, tp) or REJECT |
+| **ExecutionEngine** | 주문 전송, 체결 관리, 슬리피지 체크 | `execute(intent)`, `monitor_orders()` |
+| **BacktestEngine** | 과거 데이터로 전략 검증 | `run(strategy, period, config)` → BacktestResult |
+| **PaperEngine** | 가상 계좌 실시간 시뮬레이션 | BacktestEngine과 동일 인터페이스, 실시간 데이터 사용 |
+| **BenchmarkFramework** | 모델/전략 버전 비교, 승급 관리 | `compare(versions)`, `promote(model_id)` |
+| **AlertService** | 텔레그램 알림 발송 | `send_alert(type, message, urgency)` |
+
+### 핵심 데이터 흐름
+
+```
+UpbitGateway/MarketDataService
+    → IndicatorEngine.compute_features()
+    → RegimeDetector.detect()
+    → StrategyEngine.generate_signal()
+    → RiskManager.approve()          ← 여기서 거절 가능
+    → ExecutionEngine.execute()
+    → AlertService.send_alert()
+```
+
+> **모드 독립성**: BacktestEngine / PaperEngine / ExecutionEngine(Live)이 같은 StrategyEngine + RiskManager를 공유. 모드 전환 = 실행 레이어만 교체.
+
+### 봇/전략 관리 개념
+
+- 하나의 "봇" = Strategy 설정 + 모드 + 대상 코인 + 리스크 파라미터 묶음
+- 여러 봇을 동시 실행 가능 (예: `BTC_MOMENTUM_4H`, `ALT_MEANREV_1H`)
+- 각 봇은 독립 PnL 추적, 독립 리스크 한도
+- 전체 계좌 레벨의 글로벌 리스크 룰이 모든 봇 위에 적용
+
+---
+
+## UI 화면 설계 (상용 봇 UX 벤치마킹)
+
+### 1. 메인 대시보드
+
+| 영역 | 구성 요소 |
+|---|---|
+| **상단 요약 카드** | 오늘 PnL, 이번 달 PnL, 실현/미실현 손익, 총 자산, 현금/포지션 비율, 현재 MDD |
+| **포지션 리스트** | 심볼, 수량, 평단가, 현재가, 미실현 PnL, 포지션 리스크(계좌 대비 %) |
+| **봇 리스트** | 봇명, 전략 유형, 모드(Research/Paper/Live-Small/Live-Full), 1/7/30일 수익률, 샤프/승률 |
+| **차트 패널** | 선택 코인 가격 차트 + 진입/청산 포인트 + 지표 오버레이 (MA/RSI/BB) |
+| **하단 상태** | 최근 주문/체결 로그, 시스템 상태 (API 연결, 데이터 지연, 에러 카운트) |
+
+### 2. 전략/봇 관리
+
+**봇 설정 탭 (5개):**
+
+| 탭 | 설정 항목 |
+|---|---|
+| **기본** | 이름, 전략 유형 (모멘텀/역추세/브레이크아웃), 타임프레임, 대상 코인 |
+| **지표/AI** | 사용 지표 + 파라미터, AI 시그널 ON/OFF, AI 필터 모드 (확신도 임계값), 센티/온체인 토글 |
+| **리스크** | 포지션당 최대 리스크 %, 일일 손실 한도, MDD 한도, 코인별 최대 노출, 손절(ATR/% 기반), 익절(RR/지표 기반) |
+| **실행** | 주문 타입 (지정가/시장가), 슬리피지 허용, 최대 동시 주문 수, 레이트 리밋 버퍼 |
+| **테스트** | "백테스트 실행" / "Paper 시작" / "Live-Small 시작" 버튼 |
+
+### 3. 백테스트/리포트
+
+| 섹션 | 내용 |
+|---|---|
+| **시나리오 생성** | 전략/봇 선택, 기간, 심볼, 수수료/슬리피지 설정 |
+| **결과 요약** | 누적 PnL 곡선, 월별 PnL, MDD, 샤프, 승률, 평균 R, 홀딩 기간 |
+| **트레이드 분석** | 개별 트레이드 리스트 (진입/청산/이유/PnL), 요일·시간대 히트맵 |
+| **버전 비교** | 같은 전략의 다른 파라미터/모델 버전 겹쳐 비교 ("Live 버전 vs 후보 버전") |
+
+### 4. 리스크/계정 설정
+
+- 계정별 봇 사용 가능 최대 자본 비율
+- 한 전략의 최대 비율
+- 글로벌 MDD 한도 → 초과 시 전체 봇 OFF + 알림
+- 레짐 기반 리스크 조절 (BTC 변동성 X 이상 → 모든 포지션 스케일 다운)
+
+### 5. 로그/알림
+
+- 실시간 로그 스트림: `[시간] [봇명] [심볼] [액션] [사유]`
+- 에러/경고 패널: API 레이트 리밋, 주문 실패, 데이터 지연
+- 알림 연동 설정: 텔레그램 (이벤트별 ON/OFF 체크)
 
 ---
 
@@ -264,7 +392,7 @@
 
 **벤치마킹 대상 (운영 안정성/UX):**
 - 전략 템플릿 모듈화 (DCA, 그리드, 모멘텀 — 3Commas/Cryptohopper 수준)
-- 백테스트 → 페이퍼 → 실전 3단계 모드
+- Research → Paper → Live-Small → Live-Full 4단계 모드
 - 실시간 대시보드 (PnL, 포지션, 주문, 레버리지)
 - 알림 체계 (텔레그램/푸시 — 손실 한도 접근, 오류, 주문 실패)
 - 리스크 관리 UI (TP/SL, 트레일링, 일일 한도)
@@ -586,6 +714,10 @@ CCXT 라이브러리만 활용하고 나머지는 자체 구축. 상용 봇의 U
 - [WestAfricaTradeHub: Best AI Crypto Trading Bots](https://westafricatradehub.com/crypto/best-ai-crypto-trading-bots/)
 - [Growlonix: Top 11 Crypto Trading Bots](https://www.growlonix.com/support/article/top-11-crypto-trading-bots-features-and-reviews)
 - [CoinLaunch: Best Crypto Trading Bots](https://coinlaunch.space/blog/best-crypto-trading-bots/)
+- [Walbi: Crypto Trading Strategies 2025](https://www.walbi.com/blog/crypto-trading-strategies-2025-a-technical-and-practical-guide-for-modern-market-conditions)
+- [LiquidityFinder: AI for Trading 2025](https://liquidityfinder.com/insight/technology/ai-for-trading-2025-complete-guide)
+- [CryptoResearch: Mastering Crypto Hedge Fund Strategies 2025](https://cryptoresearch.report/crypto-research/mastering-crypto-hedge-fund-strategies-a-2025-outlook/)
+- [TokenMetrics: Open Source vs Paid Bots 2025](https://www.tokenmetrics.com/blog/top-crypto-trading-bots-2025-open-source-paid-compared)
 
 ### 레짐 감지 & HMM
 - [crypto_vol_regimes (GitHub)](https://github.com/jonatansator/crypto_vol_regimes)
@@ -610,4 +742,4 @@ CCXT 라이브러리만 활용하고 나머지는 자체 구축. 상용 봇의 U
 
 ---
 
-*마지막 업데이트: 2026-02-18 (상용 봇 벤치마킹 + 레짐 감지 HMM + 온체인 현실 평가 + SHAP 투명성 + 포지션 사이징 3계층 + 업비트 실전 이슈 + 텔레그램 알림 설계)*
+*마지막 업데이트: 2026-02-18 (백엔드 모듈 아키텍처 + UI 화면 설계 + 4단계 운영 모드 + 전략 포트폴리오 + 시장 참여자 유형 분석)*
