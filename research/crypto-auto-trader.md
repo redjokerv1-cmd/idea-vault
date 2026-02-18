@@ -154,22 +154,38 @@
 - 워크포워드 검증, 성과 지표 (샤프, MDD, 승률, PF)
 - 레짐 감지 모듈 (변동성/추세/횡보 구분 — BBW, ATR 기반)
 
-### Phase 3: ML 파이프라인 (3~4주) ← AI를 앞당김
-- ML 모델 구축: XGBoost/LightGBM 앙상블 (빠른 실험) + LSTM (시계열 패턴)
-- 피처: 축 1~3 지표를 모델 입력으로 사용 (단일 지표 규칙 X)
+### Phase 3: ML 파이프라인 (3~4주)
+- **모델 출력 제한**: 수익률 값이 아닌 "방향(Up/Down/Flat) + 확신도(0~1)"만 출력
+  - 근거: 수익률 크기 R²≈0 (Mohtashami Zadeh 2026), 방향 정확도만 유의미
+- **멀티 모델 앙상블**: 단일 LSTM 올인 금지
+  - XGBoost/LightGBM (빠른 실험, 해석 가능)
+  - 단순 모멘텀/MA 규칙 전략
+  - 얕은 NN (선택)
+  - LSTM은 후보 중 하나일 뿐, 자동 우승자 아님
+- **메타 컨트롤러**: 최근 OOS 성과 + 레짐 기반으로 각 모델 가중치 동적 조정
+  - 특정 레짐에서 한 모델 성능 하락 → 자동으로 weight 감소/off
+  - 근거: "보편적 우등생 모델 없음" (Boozary 2025, Qureshi 2025)
 - 시간 기반 train/validation/test, 롤링 워크포워드
-- 레짐별 모델 성능 분석 (추세장 vs 횡보장 vs 폭락장)
-- 규칙 기반 전략은 ML 모델 fallback으로 유지
+- 규칙 기반 전략은 ML fallback으로 유지
 - Signal Tracker 연동 (시그널 정확도 자동 추적)
 
 ### Phase 4: 실행 엔진 + 리스크 (3~4주)
 - Paper Trading 먼저 (ML 모델 시그널로 시뮬레이션)
 - CCXT 통한 주문 실행 (시장가/지정가)
+- **리스크 기반 포지션 사이징**: 모델은 방향만, 크기는 ATR/변동성/계좌% 규칙이 결정
 - 리스크 엔진: max %, 일일 한도, MDD 정지
 - 가장매매 방지 로직
 - 모델 드리프트 모니터링 (성능 하락 시 자동 fallback)
 
-### Phase 5: 운영 + 확장 (장기)
+### Phase 5: 내부 벤치마크 + 모델 승급 체계 (2~3주)
+- **벤치마크 프레임워크**: 모든 모델/전략 버전을 동일 기준으로 자동 비교
+  - 평가 지표: PnL, Sharpe, Sortino, MDD, 승률, 비용 포함 turnover
+  - RMSE/Accuracy는 참고만 (논문식 지표 ≠ 실전 성과)
+  - 근거: 대부분 연구가 실전 PnL 평가 부족 (Qureshi 2025)
+- **모델 승급 프로세스**: 새 모델은 소액 샌드박스 → 일정 기간 OOS 성과 → 메인 승급
+- 표준 피처 세트 + 실험 로그/코드 버전 관리 (내부 재현성 확보)
+
+### Phase 6: 운영 + 확장 (장기)
 - 소액 Live → 단계적 확대
 - 실시간 대시보드 (모니터링 UI)
 - 온체인 데이터 통합 (축 3 확장)
@@ -182,9 +198,13 @@
 1. **독립 프로젝트, 지식은 공유** — stock-predictor와 별도 리포, universal-devkit 경유 패턴/경험 공유
 2. **KIRA 교훈의 올바른 적용** — KIRA는 "같은 도메인 내 사일로"라서 실패, 코인은 다른 도메인이므로 독립이 정답
 3. **계산과 해석의 분리** — 지표 수학 공식은 참고 가능, 파라미터/해석/전략은 코인 전용으로 독립 구현
-4. **리스크 엔진 우선** — 시그널보다 리스크 관리가 상위 레이어
-5. **Paper Trading 필수** — 실거래 전 반드시 시뮬레이션 검증
-6. **백테스트 없이 라이브 없다** — 코인 데이터로 재보정하지 않은 전략은 실거래 금지
+4. **리스크 엔진 우선** — 시그널보다 리스크 관리가 상위 레이어, 포지션 크기는 리스크 모델이 결정
+5. **방향 예측만, 크기 예측은 과신 금지** — 모델 output은 방향+확신도, 수익률 크기 예측 R²≈0 (실증 근거)
+6. **단일 모델 올인 금지** — 멀티 모델 앙상블 + 메타 컨트롤러로 레짐 변화 대응
+7. **실전 PnL 기준 평가** — RMSE/Accuracy가 아닌 Sharpe/MDD/비용 포함 성과로 모델 평가
+8. **모델 승급 프로세스** — 새 모델은 샌드박스 → OOS 검증 → 메인 승급 (바로 라이브 금지)
+9. **Paper Trading 필수** — 실거래 전 반드시 시뮬레이션 검증
+10. **백테스트 없이 라이브 없다** — 코인 데이터로 재보정하지 않은 전략은 실거래 금지
 
 ---
 
@@ -291,10 +311,10 @@ CCXT 라이브러리만 활용하고 나머지는 기존 아키텍처 위에 자
 - LSTM/CNN에 원시 OHLCV만 vs 기술지표 추가: 거의 모든 연구에서 지표 추가 시 성능 향상
 - 코인의 높은 변동성/비정상성 때문에 지표 피처의 기여도가 주식보다 더 큼
 
-### 시그널 엔진 설계 (연구 기반)
+### 시그널 엔진 설계 (연구 기반, v2 — 메타 컨트롤러 포함)
 
 ```
-[피처 엔진]
+[피처 엔진 (3축)]
 ├── 기술지표 (SMA_50/200, RSI_14, MACD, BBW, ATR, OBV)
 ├── 센티먼트 (Fear&Greed, 뉴스 감성 점수)
 └── 시장구조 (오더북 imbalance, 거래량 구조)
@@ -303,31 +323,78 @@ CCXT 라이브러리만 활용하고 나머지는 기존 아키텍처 위에 자
 [레짐 감지] → 현재 시장 상태 (추세/횡보/고변동성)
          │
          ↓
-[ML 앙상블] → XGBoost + LSTM 예측 (방향 + 확신도)
+[멀티 모델 레이어]
+├── 모델 A: XGBoost (방향 + 확신도)
+├── 모델 B: LightGBM (방향 + 확신도)
+├── 모델 C: 규칙 기반 모멘텀 (방향 + 확신도)
+└── 모델 D: LSTM (선택, 방향 + 확신도)
          │
-         ├── 확신도 높음 → 시그널 생성
-         └── 확신도 낮음 → 대기 또는 규칙 기반 fallback
-                              │
-                              ↓
-                    [리스크 엔진] → 최종 주문 승인/거부
+         ↓
+[메타 컨트롤러] → 최근 OOS 성과 + 레짐에 따라 각 모델 가중치 동적 조정
+         │         성능 나쁜 모델은 weight↓ 또는 off
+         ↓
+[최종 시그널] → 방향(Up/Down/Flat) + 가중 확신도
+         │
+         ↓
+[리스크 엔진] → 포지션 크기 결정 (ATR/변동성/계좌% 기반)
+         │       모델은 방향만, 크기는 리스크가 결정
+         │       일일/주간 손실 한도, MDD 체크
+         ↓
+[실행 엔진] → 주문 전송 또는 대기
 ```
 
 ### ML 모델 후보 (연구 결과 기반)
 
-| 모델 | 용도 | 근거 |
+| 모델 | 용도 | 주의 | 근거 |
+|---|---|---|---|
+| XGBoost/LightGBM | 방향 예측 (빠른 실험, 해석 가능) | 첫 번째 시도 추천 | RSIS 2025: 90.4% |
+| 규칙 기반 (MA/모멘텀) | fallback + 앙상블 멤버 | 항상 유지 | 레짐에 따라 ML보다 우수할 수 있음 |
+| 앙상블 (LR+XGBoost) | 안정성 확보 | 단일 모델보다 안정 | RSIS 2025 |
+| LSTM/GRU | 시계열 패턴 | **항상 이기지 않음** | 단기에서 SVR에 밀리기도 (2026 연구) |
+
+---
+
+## 2026 연구 기반: 한계 인식 & 대응 설계
+
+### 공통 한계 (2024-2026 논문 종합)
+
+| 한계 | 근거 | 현실적 의미 |
 |---|---|---|
-| XGBoost/LightGBM | 방향 예측 (빠른 실험, 해석 가능) | RSIS 2025: 90.4% 정확도 |
-| LSTM | 시계열 패턴 포착 | 복수 연구에서 기술지표 피처 추가 시 성능 향상 |
-| 앙상블 (LR+XGBoost) | 안정성 확보 | RSIS 2025: 단일 모델보다 앙상블이 우수 |
+| 수익률 크기 예측 R²≈0 | Mohtashami Zadeh 2026 (bmfopen) | "내일 5% 오른다"는 예측은 의미 없음 |
+| 복잡한 딥러닝 ≠ 항상 우수 | 같은 연구: LSTM이 SVR에 밀리는 경우 존재 | LSTM 올인은 위험 |
+| 레짐 변화 시 모델 일반화 실패 | Boozary 2025 (ScienceDirect), Qureshi 2025 (PeerJ) | 한 장세에서 좋은 모델이 다른 장세에서 깨짐 |
+| 피처 선택이 주관적/비교 불가 | Qureshi 2025 | 표준 피처 세트 미확립 |
+| 평가가 RMSE/Accuracy 편향 | Qureshi 2025, Boozary 2025 | 실전 PnL/리스크 평가 부족 |
+| 짧은 기간/소수 코인/재현성 부족 | 복수 리뷰 논문 | 일반화 어려움 |
+| 시장조작/규제/이벤트 리스크 미반영 | Qureshi 2025 | 모델이 예측 못하는 외생 충격 |
 
-### 참고 논문
+### 한계-대응 매핑 (우리 설계)
 
-- Hafid et al. (2024): "Predicting Market Trends with Enhanced Technical Indicator Integration" — arxiv 2410.06935
-- RSIS (2025): "Bitcoin Closing Price Prediction Model using ML" — Ensemble LR+XGBoost
-- Freitas (2025): "Market sentiment and crypto risk premium" — ScienceDirect
-- Arslan (2025): "Bitcoin Price Prediction Using Sentiment Analysis and Technical Indicators" — Computational Economics
-- PMC (2023): "Effectiveness of RSI Signals in Timing Markets" — PMC 9920669
-- CFA Bitcoin Prediction (2025): "Combinatorial Fusion Analysis" — arxiv 2602.00037
+| 한계 | 대응 |
+|---|---|
+| 수익률 크기 예측 불가 | 모델 출력을 방향+확신도로 제한, 크기는 리스크 모델이 결정 |
+| 모델마다 레짐마다 성능 요동 | 멀티 모델 앙상블 + 메타 컨트롤러 (레짐별 가중치 동적 조정) |
+| 피처 선택 주관적 | 표준 피처 세트 정의 + 내부 벤치마크 프레임워크 |
+| 기술지표만으로 부족 | 3축 피처 통합 (TA + 센티먼트 + 시장구조) |
+| RMSE/Accuracy 편향 평가 | PnL, Sharpe, MDD, 비용 포함 실전 성과로 모든 모델 평가 |
+| 재현성 부족 | 실험 로그/코드 버전/데이터 기간 문서화, 내부 벤치마크 |
+| 이벤트 리스크 미반영 | 리스크 엔진에 유동성/스프레드/규제뉴스 변수 포함 |
+
+### 현실적 기대치
+
+- "정확한 수익률 예측"은 포기. "방향 + 리스크 제어"에 집중
+- 논문 92% 정확도는 특정 기간/코인/조건에서의 결과. 일반화 보장 아님
+- 학술 수준에서 "모든 한계를 해결한 실거래 검증 AI 봇" 사례는 아직 없음
+- 우리가 할 일: 논문이 제안하는 개선 방향을 설계에 녹여서 **한계를 "극복"이 아닌 "우회"**
+
+### 참고 논문 (추가)
+
+- Mohtashami Zadeh (2026): "Short-term crypto prediction comparison" — BMF Open
+- Boozary (2025): "Bitcoin prediction ML systems review" — ScienceDirect
+- Qureshi (2025): "Cryptocurrency prediction models comparison" — PeerJ CS
+- Dubey (2025): "Bitcoin direction prediction using on-chain data" — ScienceDirect
+- Visharad (2025): "Stablecoin prediction with TA+ML" — ScienceDirect
+- Trade Pilot (2025): "AI Crypto Trading Bot" — IJRPR
 
 ### 참고 출처
 - [FinanceFeeds: Does TA Work Better for Crypto?](https://financefeeds.com/does-technical-analysis-work-better-for-crypto/)
@@ -348,4 +415,4 @@ CCXT 라이브러리만 활용하고 나머지는 기존 아키텍처 위에 자
 
 ---
 
-*마지막 업데이트: 2026-02-18 (실증 연구 기반 3축 피처/ML 아키텍처 추가, 독립 리포 구조로 변경)*
+*마지막 업데이트: 2026-02-18 (2026 연구 한계 분석 + 메타 컨트롤러 구조 + 벤치마크 프레임워크 추가)*
