@@ -72,6 +72,7 @@ idea-vault/
 | apps | [Tileable AI](apps/tileable-ai/README.md) | 💡 idea | AI 기반 타일 텍스처 생성 도구 |
 | features | [Composite Score 100](features/composite-score-100.md) | 🔬 researching | 스크리닝 7점→100점 연속형 복합 스코어 개편 |
 | research | [Event-Driven Prediction + LLM Sentiment](research/event-driven-prediction-llm-sentiment.md) | 🔬 researching | 이벤트 기반 예측 + LLM 감성분석 딥다이브 |
+| research | [AI 코인 자동매매 트레이더](research/crypto-auto-trader.md) | 🔬 researching | 업비트 기반 AI 코인 자동매매 도구 — 기존 주식 인프라 활용 |
 | business | [Product Synopsis: Buy Decision Tool](business/product-synopsis-buy-decision.md) | 🔬 researching | "이 종목, 지금 사도 되는가?" 3축 의사결정 프레임워크 |
 | plugins | [Export Selected Actors](plugins/export-selected-actors/README.md) | ✅ completed | 선택한 액터 Excel 내보내기 |
 | plugins | [StaticMesh Overlap Detector](plugins/staticmesh-overlap-detector/README.md) | ✅ completed | 메시 겹침/중복 검출 |
