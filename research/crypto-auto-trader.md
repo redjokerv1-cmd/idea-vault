@@ -88,6 +88,19 @@
 **업비트 = 현물 전용**: 롱만 가능, 공매도/헤지 불가, 펀딩비 없음, 레버리지 없음.
 → 리스크 엔진이 단순해지는 장점.
 
+### 업비트 API 실전 이슈 (2025-2026 리서치)
+
+| 이슈 | 상세 | 대응 |
+|---|---|---|
+| **PyJWT 2.0+ 호환성** | `jwt.encode()` 반환 타입 변경 (bytes→str) | 버전별 분기 또는 `.decode('utf-8')` 처리 |
+| **Rate Limit 정정** | 공식: Public 30 req/sec, Private 8 req/sec | CCXT의 기본 rate limiter + 자체 버퍼 |
+| **Query Hash** | SHA-512, URL 파라미터 알파벳 정렬 필수 | CCXT가 처리하지만 직접 호출 시 주의 |
+| **Nonce** | UUID 기반, replay attack 방지 | 매 요청 새 UUID 생성 |
+| **API 안정성** | 2019년 이후 인증 스킴 변경 없음 | 장기 프로젝트에 적합 (바이낸스 대비 안정) |
+| **라이브러리** | `upbit-client` (2026.01 최신, 36 releases) | CCXT 우선, 필요 시 upbit-client 보조 |
+
+> CCXT가 대부분 처리하지만, 직접 REST 호출이 필요한 경우(WebSocket 인증 등) 위 이슈를 알아야 한다.
+
 ---
 
 ## 법적/규제 분석 (2025-2026 기준)
@@ -125,7 +138,10 @@
 - **실시간 데이터**: websocket-client + asyncio
 - **DB**: PostgreSQL (기존 Railway 인스턴스, ct_ prefix 테이블)
 - **기술지표**: pandas, numpy, ta (기존 코드 재활용)
-- **AI/ML**: scikit-learn, PyTorch (향후)
+- **AI/ML**: scikit-learn, XGBoost, LightGBM, PyTorch (향후 LSTM)
+- **모델 해석**: SHAP (피처 중요도 투명 공개, CatBoost/XGBoost와 호환)
+- **레짐 감지**: hmmlearn (HMM), arch (GARCH-MIDAS)
+- **알림**: python-telegram-bot (텔레그램 알림 체계)
 - **모니터링**: React UI (기존 확장) + Debug API
 - **배포**: Railway (기존) 또는 별도 VPS (24/7 안정성)
 
@@ -152,7 +168,14 @@
 - 이벤트 기반 백테스터 구축 (수수료 0.05%, 슬리피지)
 - 파라미터 코인 환경 튜닝 (RSI 80/20, MA zone 방식, MACD 기간 확대 등)
 - 워크포워드 검증, 성과 지표 (샤프, MDD, 승률, PF)
-- 레짐 감지 모듈 (변동성/추세/횡보 구분 — BBW, ATR 기반)
+- **레짐 감지 모듈** (변동성/추세/횡보 구분):
+  - 1차: BBW + ATR 기반 규칙 (빠른 구현, 해석 가능)
+  - 2차: Hidden Markov Model (hmmlearn 또는 hidden-regime 패키지)
+    - 입력: log returns → HMM 2~4 상태 분류
+    - 상태 수 결정: AIC/BIC 기준 모델 선택
+    - Baum-Welch(파라미터 추정) + Viterbi(레짐 추론)
+    - GARCH-MIDAS + HMM 조합으로 단기/장기 변동성 분리 (2025 연구)
+  - 레짐 결과를 ML 피처로 투입 + 메타 컨트롤러 입력으로 사용
 
 ### Phase 3: ML 파이프라인 (3~4주)
 - **모델 출력 제한**: 수익률 값이 아닌 "방향(Up/Down/Flat) + 확신도(0~1)"만 출력
@@ -173,7 +196,13 @@
 - Paper Trading 먼저 (ML 모델 시그널로 시뮬레이션)
 - CCXT 통한 주문 실행 (시장가/지정가)
 - **SmartTrade 스타일 조건부 주문**: 복합 TP/SL + 트레일링 (3Commas 벤치마킹)
-- **리스크 기반 포지션 사이징**: 모델은 방향만, 크기는 ATR/변동성/계좌% 규칙이 결정
+- **리스크 기반 포지션 사이징** (3계층):
+  - Layer 1: Fixed-Fractional (계좌의 0.5~2% 리스크/트레이드)
+  - Layer 2: ATR-based 조정 (Units = Account × Risk% / ATR × multiplier)
+    - 변동성 높으면 자동 축소, 낮으면 확대 → 리스크 정규화
+  - Layer 3: Kelly-Lite (Dynamic Kelly + 드로우다운 스케일링)
+    - 순수 Kelly는 드로우다운 과대 → Half-Kelly 또는 드로우다운 비례 축소
+  - 전략 로직(진입/청산)과 사이징 로직 완전 분리 (모듈 교체 가능)
 - 리스크 엔진: max %, 일일 한도, MDD 정지
 - 가장매매 방지 로직
 - 모델 드리프트 모니터링 (성능 하락 시 자동 fallback)
@@ -395,6 +424,101 @@ CCXT 라이브러리만 활용하고 나머지는 자체 구축. 상용 봇의 U
 
 ---
 
+## 온체인 데이터: 현실적 평가 (2025-2026 리서치)
+
+### 핵심 결론
+온체인 데이터는 **보조 피처**로 활용하되, 단독 시그널로는 신뢰도 부족.
+
+### Whale Alert의 한계
+- 대형 거래소 입금의 가격 예측력: R² = 0.0017~0.0537 (Presto Research 2025)
+- 개별 대형 거래는 OTC 데스크, 커스토디 이동, 거래소 내부 재편일 가능성이 높음
+- "고래가 움직였다 = 매도 신호"는 과대 해석
+
+### 유효한 온체인 지표 (우선순위)
+| 지표 | 유효성 | 적용 방법 |
+|---|---|---|
+| **거래소 순유입/유출 (7-30일 추세)** | 높음 | 지속적 유출 = 매집 신호, 추세가 중요 (개별 건 아님) |
+| **스테이블코인 거래소 유입** | 중간-높음 | 대량 USDT/USDC 유입 = 매수 준비 가능성 |
+| **코인 연령별 분석** | 중간 | 3년+ 미이동 코인 이동 vs 최근 이동 코인 — 의미가 다름 |
+| **NVT Ratio** | 중간 | 네트워크 가치 대비 거래량 — 과대/과소 평가 판단 |
+| **단발성 Whale Alert** | 낮음 | 노이즈 수준, 단독 시그널로 사용 금지 |
+
+### 설계 반영
+- Phase 2의 축 3(시장구조)에서 온체인은 **후순위**로 유지 (기존 결정 유효)
+- 초기: 오더북 imbalance + 거래량 구조에 집중
+- 확장 시: 거래소 순유입/유출 7일 이동평균 + 스테이블코인 유입을 피처로 추가
+- Whale Alert 단독 트리거는 절대 금지
+
+---
+
+## 모델 투명성: SHAP 기반 해석 (2025 리서치)
+
+### 왜 필요한가
+- 아키텍처 원칙 #12 "투명성 > 블랙박스"의 구체적 구현
+- 상용 봇이 "AI가 추천합니다" 블랙박스인 것과의 핵심 차별점
+- 규제 대응: "왜 이 시점에 이 매매를 했는지" 설명 가능
+
+### SHAP 적용 계획
+| 적용 대상 | 방법 | 용도 |
+|---|---|---|
+| XGBoost/LightGBM | TreeSHAP (빠름) | 매 시그널별 피처 기여도 실시간 계산 |
+| LSTM/NN (향후) | DeepSHAP/KernelSHAP | 비용 높아 배치 처리 |
+| 대시보드 표시 | 글로벌 + 로컬 SHAP | 전체 트렌드 + 개별 판단 근거 |
+
+### 실전 활용 (2025 연구 근거)
+- CatBoost/XGBoost + SHAP: 코인 마이크로스트럭처 분석에서 피처 랭킹 자산 간 안정적 (arxiv 2025)
+- Order flow imbalance, bid-ask spread, depth가 일관되게 중요 피처
+- **레짐 진단**: 스트레스 기간에 매크로 변수 중요도가 급등 → 레짐 전환 감지 보조 활용
+- **Quant-Safe 프레임워크** (2026): point-in-time 피처 엔지니어링 + walk-forward SHAP → 데이터 누수 방지
+
+### 대시보드 표시 설계
+```
+시그널 상세 뷰 (예시):
+┌─────────────────────────────────────────┐
+│ BTC/KRW  방향: UP  확신도: 0.73         │
+│                                          │
+│ 피처 기여도 (SHAP):                      │
+│ ██████████ RSI_14      +0.15            │
+│ ████████   SMA_200     +0.12            │
+│ ██████     BBW         +0.09            │
+│ █████      F&G_Index   +0.07            │
+│ ███        OBV_trend   +0.04            │
+│ ▓▓         Orderbook   -0.03            │
+│                                          │
+│ 레짐: 추세 상승 | 모델: XGBoost(w=0.4)  │
+│        + LightGBM(w=0.35) + Rules(w=0.25)│
+└─────────────────────────────────────────┘
+```
+
+---
+
+## 텔레그램 알림 체계 설계
+
+### 기술 스택
+- `python-telegram-bot` (비동기 지원, Telegram Bot API)
+- BotFather에서 봇 생성 → 토큰 발급
+- 환경변수로 토큰/채팅 ID 관리 (하드코딩 금지)
+
+### 알림 유형 (우선순위)
+
+| 유형 | 트리거 | 긴급도 |
+|---|---|---|
+| **MDD 경고** | MDD가 설정 한도의 80% 도달 | CRITICAL |
+| **자동 정지** | MDD 한도 초과, 일일 손실 한도 초과 | CRITICAL |
+| **주문 실패** | API 에러, 잔고 부족, 체결 실패 | HIGH |
+| **시스템 에러** | WebSocket 끊김, DB 연결 실패, 프로세스 크래시 | HIGH |
+| **시그널 발생** | 확신도 임계값 이상의 매수/매도 시그널 | MEDIUM |
+| **체결 알림** | 주문 체결 완료 (가격, 수량, 수수료) | MEDIUM |
+| **일일 리포트** | 일일 PnL, 거래 횟수, 승률 요약 | LOW |
+| **모델 드리프트** | 모델 성능 하락 감지 (fallback 전환) | MEDIUM |
+
+### 구현 주의사항
+- 텔레그램 메시지 4000자 제한 → 긴 리포트는 분할 전송
+- 중복 알림 방지 (동시 요청 플래그 관리)
+- 알림 빈도 제한 (분당 최대 N건) — 시그널 폭주 시 요약 모드
+
+---
+
 ## 2026 연구 기반: 한계 인식 & 대응 설계
 
 ### 공통 한계 (2024-2026 논문 종합)
@@ -447,13 +571,43 @@ CCXT 라이브러리만 활용하고 나머지는 자체 구축. 상용 봇의 U
 
 ## 참고 자료
 
+### 업비트 & 규제
 - [업비트 개발자 센터](https://docs.upbit.com/)
-- [업비트 REST API Best Practice](https://docs.upbit.com/kr/docs/rest-api-best-practice)
+- [업비트 REST API Best Practice](https://global-docs.upbit.com/docs/rest-api-best-practice)
 - [업비트 WebSocket Best Practice](https://global-docs.upbit.com/docs/websocket-best-practice)
 - [CCXT 업비트 연동 가이드](https://global-docs.upbit.com/docs/ccxt-library-integration-guide)
+- [python-upbit-client (GitHub)](https://github.com/uJhin/python-upbit-client)
+- [TildAlice: Upbit Trading Bot Setup](https://tildalice.io/upbit-trading-bot-setup-auth/)
 - [가상자산이용자보호법](https://www.law.go.kr/lsInfoP.do?lsId=014474)
 - [금감원 분 단위 감시 발표 (2025.10)](https://www.mbn.co.kr/news/economy/5149771)
 
+### 상용 봇 & 벤치마킹
+- [altfins: Best Crypto Trading Bots 2025](https://altfins.com/knowledge-base/best-crypto-tradings-bots-2025/)
+- [WestAfricaTradeHub: Best AI Crypto Trading Bots](https://westafricatradehub.com/crypto/best-ai-crypto-trading-bots/)
+- [Growlonix: Top 11 Crypto Trading Bots](https://www.growlonix.com/support/article/top-11-crypto-trading-bots-features-and-reviews)
+- [CoinLaunch: Best Crypto Trading Bots](https://coinlaunch.space/blog/best-crypto-trading-bots/)
+
+### 레짐 감지 & HMM
+- [crypto_vol_regimes (GitHub)](https://github.com/jonatansator/crypto_vol_regimes)
+- [hidden-regime PyPI](https://pypi.org/project/hidden-regime/2.0.0/)
+- [QuantStart: HMM Market Regime Detection](https://www.quantstart.com/articles/market-regime-detection-using-hidden-markov-models-in-qstrader/)
+- [Springer: Regime Switching Forecasting for Cryptocurrencies (2024)](https://link.springer.com/article/10.1007/s42521-024-00123-2)
+
+### 온체인 데이터
+- [Nansen: Onchain Data for Token Flow Research](https://www.nansen.ai/post/how-to-effectively-use-onchain-data-for-token-flow-research-a-comprehensive-guide)
+- [Presto Research: Whale Alerts - Are They Tradable?](https://www.prestolabs.io/research/whale-alerts-are-they-tradable)
+- [Katoshi: On-Chain Indicators for Algorithmic Strategy](https://katoshi.ai/blog/on-chain-indicators-for-algorithmic-strategy-development-using-blockchain-analytics-as-trading-signals)
+
+### SHAP & 모델 해석
+- [MarketCalls: SHAP for Traders](https://marketcalls.in/machine-learning/demystifying-shap-for-traders-how-to-trust-your-machine-learning-forecast.html)
+- [Quant-Safe XAI Framework (2026 preprint)](https://www.preprints.org/manuscript/202601.1636)
+- [arxiv: Explainable Patterns in Cryptocurrency Microstructure (2025)](https://arxiv.org/html/2602.00776v1)
+
+### 포지션 사이징 & 리스크
+- [PyQuantLab: Dynamic Kelly Sizing for Crypto](https://pyquantlab.medium.com/dual-momentum-selection-with-dynamic-kelly-sizing-for-crypto-portfolio-08b3822cfa29)
+- [Ildi Veliu: Position Sizing Frameworks](https://medium.com/@ildiveliu/risk-before-returns-position-sizing-frameworks-fixed-fractional-atr-based-kelly-lite-4513f770a82a)
+- [TradingTechAI: ATR Risk Management Bot](https://tradingtechai.medium.com/build-an-advanced-python-trading-bot-with-atr-risk-management-da9354899a58)
+
 ---
 
-*마지막 업데이트: 2026-02-18 (2026 연구 한계 분석 + 메타 컨트롤러 구조 + 벤치마크 프레임워크 추가)*
+*마지막 업데이트: 2026-02-18 (상용 봇 벤치마킹 + 레짐 감지 HMM + 온체인 현실 평가 + SHAP 투명성 + 포지션 사이징 3계층 + 업비트 실전 이슈 + 텔레그램 알림 설계)*
