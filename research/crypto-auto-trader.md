@@ -1,8 +1,12 @@
-# AI 코인 자동매매 트레이더
+# CoinPilot AI - 코인 자동매매 트레이더
 
-**상태**: 🔬 researching  
+**상태**: 🚧 in_progress (Phase 0 완료)  
 **생성일**: 2026-02-18  
-**분류**: research  
+**분류**: project  
+
+**리포지토리**:
+- Backend: [coinpilot-backend](https://github.com/redjokerv1-cmd/coinpilot-backend)
+- Frontend: [coinpilot-frontend](https://github.com/redjokerv1-cmd/coinpilot-frontend)  
 
 ---
 
