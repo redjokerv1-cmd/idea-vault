@@ -10,6 +10,8 @@
 idea-vault/
 ├── apps/                    # 앱/도구 아이디어
 │   └── tileable-ai/         # 타일 텍스처 생성기
+├── games/                   # 게임 아이디어
+│   └── 7days-spellbook/     # 7일의 마법서 — 코옵 로그라이크
 ├── plugins/                 # 언리얼 엔진 플러그인/스크립트
 │   ├── export-selected-actors/
 │   ├── staticmesh-overlap-detector/
@@ -43,7 +45,7 @@ idea-vault/
 
 **상태**: 💡 idea
 **생성일**: YYYY-MM-DD
-**분류**: apps / features / research / business
+**분류**: apps / games / features / research / business
 
 ## 개요
 한 줄 설명
@@ -69,6 +71,7 @@ idea-vault/
 
 | 분류 | 이름 | 상태 | 설명 |
 |------|------|------|------|
+| games | [7일의 마법서](games/7days-spellbook/README.md) | 🔬 researching | 7일 안에 마법 빌드 완성 → 보스전, 코옵 로그라이크 (Godot 4) |
 | apps | [Tileable AI](apps/tileable-ai/README.md) | 💡 idea | AI 기반 타일 텍스처 생성 도구 |
 | features | [Composite Score 100](features/composite-score-100.md) | 🔬 researching | 스크리닝 7점→100점 연속형 복합 스코어 개편 |
 | research | [Event-Driven Prediction + LLM Sentiment](research/event-driven-prediction-llm-sentiment.md) | 🔬 researching | 이벤트 기반 예측 + LLM 감성분석 딥다이브 |
@@ -135,4 +138,4 @@ idea-vault/
 
 ---
 
-*마지막 업데이트: 2026-02-16*
+*마지막 업데이트: 2026-02-22*
