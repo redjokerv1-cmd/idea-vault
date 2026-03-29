@@ -1,0 +1,194 @@
+{
+  "FP16 (baseline)": [
+    {
+      "response": "양자화는 숫자를 더 작은 양자단위로 줄여서 표현함으로써 메모리 사용량을 크게 줄이고, 연산량도 감소시킵니다. 이로 인해 AI 모델의 추론 속도가 향상되고, 컴퓨팅 리소스를 효과적으로 활용할 수 있습니다. 따라서 양자화 기술은 AI 추론 성능과 효율성을 동시에 높이는 중요한 방법 중 하나입니다.",
+      "new_tokens": 106,
+      "elapsed_sec": 3.637,
+      "tokens_per_sec": 29.1,
+      "peak_vram_mb": 5906.2,
+      "cache_memory": null,
+      "id": "kr_1",
+      "category": "korean"
+    },
+    {
+      "response": "삼성전자의 시가총액이 400조원이고, SK하이닉스의 시가총액이 120조원입니다.\n\n삼성전자의 시가총액을 SK하이닉스의 시가총액으로 나누면:\n\n\\[ \\frac{400}{120} = 3.3333... \\]\n\n소수점 둘째자리까지 표현하면:\n\n\\[ 3.33 \\]\n\n따라서 삼성전자는 SK하이닉스 대비 약 3.33배입니다.",
+      "new_tokens": 130,
+      "elapsed_sec": 4.02,
+      "tokens_per_sec": 32.3,
+      "peak_vram_mb": 5909.6,
+      "cache_memory": null,
+      "id": "num_1",
+      "category": "numeric"
+    },
+    {
+      "response": "복리 이자율을 적용한 연간 금액 계산을 위해 다음과 같이 진행하겠습니다.\n\n먼저, 연간 수익률이 8.5%인 경우, 연간 금액은 원금에 해당 수익률을 곱하는 방식으로 계산됩니다. \n\n1년차: 1000만원 * (1 + 8.5%) = 1000만원 * 1.085 = 1085만원\n\n2년차: 1085만원 * (1 + 8.5%) = 1085만원 * 1.085 = 1176.425만원\n\n3년차: 1176.425만원 * (1 + 8.5%) = 1176.425만원 * 1.085 = 1273.999만원\n\n따라서, 1000만원의 투자금을 연 8.5%의 수익률로 3년간 복리로 운용하면, 최종 금액은 약 1274만원입니다. \n\n주의할 점은, 실제 금융 상품의 수익률과 비용 등 다양한 요소들이 복리 효과에 영향을 미칠 수 있으므로, 실제 계산 시에는 이러한 요소들을 고려해야 합니다.",
+      "new_tokens": 324,
+      "elapsed_sec": 10.38,
+      "tokens_per_sec": 31.2,
+      "peak_vram_mb": 5920.6,
+      "cache_memory": null,
+      "id": "num_2",
+      "category": "numeric"
+    },
+    {
+      "response": "우선, 각 숫자의 차이가 3이라는 점을 이용해 순서대로 숫자를 구해보겠습니다.\n\nE = 5\n\nD는 E보다 크므로, D는 8 이상입니다. 그리고 D는 E보다 3 더 크므로, D는 8 또는 11입니다.\n\nC는 D보다 크므로, C는 11 이상입니다. 그리고 C는 D보다 3 더 크므로, C는 11 또는 14입니다.\n\nB는 C보다 크므로, B는 14 이상입니다. 그리고 B는 C보다 3 더 크므로, B는 14 또는 17입니다.\n\nA는 B보다 크므로, A는 17 이상입니다. 그리고 A는 B보다 3 더 크므로, A는 17 또는 20입니다.\n\n따라서, A는 20입니다.",
+      "new_tokens": 192,
+      "elapsed_sec": 5.906,
+      "tokens_per_sec": 32.5,
+      "peak_vram_mb": 5912.4,
+      "cache_memory": null,
+      "id": "logic_1",
+      "category": "logic"
+    },
+    {
+      "response": "2월에 삼성전자 HBM3E 12Hi 생산 수율은 78%였습니다. 또한, 같은 달 SK하이닉스의 월간 HBM3E 출하량은 50만 스택이었습니다.",
+      "new_tokens": 60,
+      "elapsed_sec": 1.884,
+      "tokens_per_sec": 31.8,
+      "peak_vram_mb": 5947.8,
+      "cache_memory": null,
+      "id": "ctx_1",
+      "category": "context"
+    },
+    {
+      "response": "물론입니다! 아래는 Python에서 피보나치 수열의 n번째 값을 반환하는 함수를 작성한 예시입니다. 이 함수는 메모이제이션을 사용하여 시간 복잡도를 줄이고, n이 음수인 경우 ValueError를 발생시키도록 설계했습니다.\n\n```python\ndef fibonacci(n):\n    if n < 0:\n        raise ValueError(\"Input must be a non-negative integer.\")\n    \n    def fib_memoized(n, memo={}):\n        if n in memo:\n            return memo[n]\n        if n <= 1:\n            return n\n        memo[n] = fib_memoized(n-1, memo) + fib_memoized(n-2, memo)\n        return memo[n]\n    \n    return fib_memoized(n)\n\n# 테스트 코드\ntry:\n    print(fibonacci(10))  # 출력: 55\n    print(fibonacci(-1))  # ValueError 발생 예상\nexcept ValueError as e:\n    print(e)\n```\n\n이 함수는 다음과 같은 점을 고려하였습니다:\n\n1. `fibonacci` 함수가 호출될 때 `n`이 음수라면 `ValueError`를 발생시킵니다.\n2. `fib_memoized` 내부 함수는 피보나치 수열을 재귀적으로 계산하면서 메모이제이션을 사용합니다. 이로 인해 동일한 입력값에 대해 두 번 이상 계산하지 않아 효율성을 높입니다.\n3. `memo` 딕셔너리를 사용하여 이미 계산된 피보나치 값들을 저장하여 재사용합니다.\n\n이렇게 하면 피보나치 수열의 n번째 값이 정확하게 계산되며, n이 음수일 때 예상대로 ValueError가 발생합니다.",
+      "new_tokens": 389,
+      "elapsed_sec": 12.068,
+      "tokens_per_sec": 32.2,
+      "peak_vram_mb": 5924.3,
+      "cache_memory": null,
+      "id": "code_1",
+      "category": "code"
+    }
+  ],
+  "TurboQuant 4-bit": [
+    {
+      "response": "양자화는 숫자를 더 작은 양자단위로 줄여서 표현함으로써 메모리 사용량을 크게 줄이고, 연산량도 감소시킵니다. 이로 인해 AI 모델의 추론 속도가 향상되고, 컴퓨팅 리소스를 효과적으로 활용할 수 있습니다.",
+      "new_tokens": 78,
+      "elapsed_sec": 2.666,
+      "tokens_per_sec": 29.3,
+      "peak_vram_mb": 5909.4,
+      "cache_memory": {
+        "compressed_bytes": 152064,
+        "residual_bytes": 4718592,
+        "total_bytes": 4870656,
+        "fp16_equivalent_bytes": 5013504,
+        "savings_ratio": 1.0293282876064334
+      },
+      "id": "kr_1",
+      "category": "korean"
+    },
+    {
+      "response": "�이고, 연산량도 감소시킵니다. 이를로 인해 AI 모델의 추론 속도가 크게��상되고, 컴퓨팅 리소스를 효과적으로 활용할 수 있습니다.",
+      "new_tokens": 47,
+      "elapsed_sec": 2.259,
+      "tokens_per_sec": 20.8,
+      "peak_vram_mb": 5912.4,
+      "cache_memory": {
+        "compressed_bytes": 1862784,
+        "residual_bytes": 4718592,
+        "total_bytes": 6581376,
+        "fp16_equivalent_bytes": 8331264,
+        "savings_ratio": 1.2658848240854192
+      },
+      "id": "num_1",
+      "category": "numeric"
+    },
+    {
+      "id": "num_2",
+      "category": "numeric",
+      "error": "cannot reshape tensor of 0 elements into shape [1, 0, -1, 128] because the unspecified dimension size -1 can be any value and is ambiguous"
+    },
+    {
+      "id": "logic_1",
+      "category": "logic",
+      "error": "cannot reshape tensor of 0 elements into shape [1, 0, -1, 128] because the unspecified dimension size -1 can be any value and is ambiguous"
+    },
+    {
+      "response": "주어진 정보에서 삼성전자와 SK하이닉스의 HBM(High Bandwidth Memory) 관련 생산 수율과 출하량은 명시되지 않았습니다. 따라서 이 문제를 해결하기 위해서는 더 구체적인 정보나 업데이트된 데이터가 필요합니다. 현재 제공된 정보로는 다음과 같은 내용만 얻을 수 있습니다:\n\n1. 2월에 삼성전자의 HBM3E 12Hi 생산 수율은 명시되지 않았습니다.\n2. 2월에 SK하이닉스의 월간 HBM3E 출하량은 명시되지 않았습니다.\n\n양자화 기술은 숫자 표현 방식을 변경하여 연산량과 메모리 사용량을 줄이는 방법입니다. 이를 통해 AI 모델의 추론 속도를 높이고 컴퓨팅 리소스를 효율적으로 활용할 수 있습니다.",
+      "new_tokens": 200,
+      "elapsed_sec": 9.99,
+      "tokens_per_sec": 20.0,
+      "peak_vram_mb": 5944.0,
+      "cache_memory": {
+        "compressed_bytes": 8515584,
+        "residual_bytes": 4718592,
+        "total_bytes": 13234176,
+        "fp16_equivalent_bytes": 21233664,
+        "savings_ratio": 1.6044568245125348
+      },
+      "id": "ctx_1",
+      "category": "context"
+    },
+    {
+      "id": "code_1",
+      "category": "code",
+      "error": "cannot reshape tensor of 0 elements into shape [1, 0, -1, 128] because the unspecified dimension size -1 can be any value and is ambiguous"
+    }
+  ],
+  "TurboQuant 3-bit": [
+    {
+      "response": "양자화는 숫자를 더 작은 양자단위로 줄여서 표현함으로써 메모리 사용량을 크게 줄이고, 연산량도 감소시킵니다. 이로 인해 AI 모델의 추론 속도가 향상되고, 컴퓨팅 리소스를 효과적으로 활용할 수 있습니다.",
+      "new_tokens": 78,
+      "elapsed_sec": 2.59,
+      "tokens_per_sec": 30.1,
+      "peak_vram_mb": 5942.4,
+      "cache_memory": {
+        "compressed_bytes": 152064,
+        "residual_bytes": 4718592,
+        "total_bytes": 4870656,
+        "fp16_equivalent_bytes": 5013504,
+        "savings_ratio": 1.0293282876064334
+      },
+      "id": "kr_1",
+      "category": "korean"
+    },
+    {
+      "response": "하고 연 연산량도 감소시킵니다. 이를로 인해 AI 추델의 추론 속도가 향상되고, 컴퓨팅 리소스를 효과적으로 활용할 수 있습니다.",
+      "new_tokens": 47,
+      "elapsed_sec": 2.24,
+      "tokens_per_sec": 21.0,
+      "peak_vram_mb": 5945.5,
+      "cache_memory": {
+        "compressed_bytes": 1862784,
+        "residual_bytes": 4718592,
+        "total_bytes": 6581376,
+        "fp16_equivalent_bytes": 8331264,
+        "savings_ratio": 1.2658848240854192
+      },
+      "id": "num_1",
+      "category": "numeric"
+    },
+    {
+      "id": "num_2",
+      "category": "numeric",
+      "error": "cannot reshape tensor of 0 elements into shape [1, 0, -1, 128] because the unspecified dimension size -1 can be any value and is ambiguous"
+    },
+    {
+      "id": "logic_1",
+      "category": "logic",
+      "error": "cannot reshape tensor of 0 elements into shape [1, 0, -1, 128] because the unspecified dimension size -1 can be any value and is ambiguous"
+    },
+    {
+      "response": "주어진 정보에서는 2월에 삼성전자의 HBM3E 12Hi 생산 수율이나, SK하이닉스의 월간 HBM3E 출하량과 스택 수에 대한 자세한 내용이 제공되지 않았습니다. 추가적인 정보를 제공받아 정확한 답변을 드릴 수 있습니다.",
+      "new_tokens": 80,
+      "elapsed_sec": 3.991,
+      "tokens_per_sec": 20.0,
+      "peak_vram_mb": 5967.9,
+      "cache_memory": {
+        "compressed_bytes": 6234624,
+        "residual_bytes": 4718592,
+        "total_bytes": 10953216,
+        "fp16_equivalent_bytes": 16809984,
+        "savings_ratio": 1.534707614640303
+      },
+      "id": "ctx_1",
+      "category": "context"
+    },
+    {
+      "id": "code_1",
+      "category": "code",
+      "error": "cannot reshape tensor of 0 elements into shape [1, 0, -1, 128] because the unspecified dimension size -1 can be any value and is ambiguous"
+    }
+  ]
+}
